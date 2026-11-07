@@ -1,12 +1,14 @@
 # RP2040 Voltage Fault Injection Tool
 
-A PicoGlitcher-inspired hardware platform for voltage fault-injection experiments, using Raspberry Pi Pico PIO state machines for timing without an FPGA. The board combines MOSFET crowbar glitching, selectable supply-voltage multiplexing, and software-controlled target power routing on a shared target supply output.
+A PicoGlitcher based hardware platform for voltage fault-injection experiments, using Raspberry Pi Pico PIO state machines for timing without an FPGA. The board combines MOSFET crowbar glitching, selectable supply-voltage multiplexing, and software-controlled target power routing on a shared target supply output.
 
 The initial target is the **MSP-LITO-L2228 board based on the TI MSPM0L2228**, for eCTF experiments.
 
 ## Project status
 
-The schematic and a four-layer PCB layout have been developed. The current timing goal is approximately **200–300 ns crowbar command pulses**. This is a design goal for the control signal; the resulting voltage dip at the target MCU has not yet been characterized in the available project records.
+The schematic and a four-layer PCB layout have been developed. The current timing goal is approximately **200–300 ns crowbar command pulses**. This is a design goal for the control signal; the resulting voltage dip at the target MCU has not yet been recorded.
+
+Neither the Firmware or the PCB has been implemented yet.
 
 ## Features
 
@@ -16,8 +18,7 @@ The schematic and a four-layer PCB layout have been developed. The current timin
 - Voltage selection using 3.3 V, 1.8 V, or an external user voltage.
 - Independently controlled normal-supply and multiplexed-supply paths.
 - A shared `VDD_VICTIM` connection for the external target.
-- Three trigger inputs and filtered target-voltage monitoring.
-- Four-layer PCB architecture with a dedicated ground reference layer.
+- Three trigger input
 
 
 The target supply is the common node between the selected power source, the crowbar devices, and the voltage-monitoring circuit. The controller has its own supply, allowing it to remain active while the target voltage is disturbed.
@@ -26,17 +27,9 @@ The target supply is the common node between the selected power source, the crow
 
 The Raspberry Pi Pico provides the RP2040 controller. Its responsibilities are to configure the operating mode, select a voltage source, arm a trigger, sequence the glitch outputs, and monitor target supply voltage.
 
-PIO state machines are intended to handle timing-critical operations. Experiment configuration and result handling can run on the processor, while a PIO program performs a defined trigger, delay, pulse, and return sequence.
+PIO state machines are intended to handle timing-critical operations.
 
-For example, with a **125 MHz PIO clock and a divider of 1**, each instruction cycle is 8 ns:
-
-| Cycle count | Duration |
-|---|---:|
-| 25 | 200 ns |
-| 37 | 296 ns |
-| 38 | 304 ns |
-
-These values describe digital command timing. Gate-driver propagation, MOSFET switching, target capacitance, and connection inductance determine the actual supply waveform. Trigger sampling also contributes latency; the completed firmware must account for its configuration.
+Gate-driver propagation, MOSFET switching, target capacitance, and connection inductance determine the actual supply waveform. Trigger sampling also contributes latency; the completed firmware must account for its configuration.
 
 ## 2. Crowbar stage
 
@@ -44,12 +37,11 @@ The crowbar stage briefly creates a low-resistance path from `VDD_VICTIM` to gro
 
 Two **IRF7832PBF N-channel MOSFETs** provide different discharge paths:
 
-| Path | Connection | Purpose |
-|---|---|---|
-| IC1 | Target rail → MOSFET → R7, 0.1 Ω → ground | Adds intentional series resistance for an alternative discharge characteristic |
-| IC2 | Target rail → MOSFET → ground | Provides the direct discharge path |
+One directly shorts the power rail to Ground
 
-The 0.1 Ω resistor does not establish a fixed peak-current limit. Peak current depends on the complete circuit, including capacitance, resistance, inductance, and whether a supply path remains connected during the pulse.
+The other shorts the power rail to ground through a 0.1 ohm source resistart for alternative discharge characteristic
+
+The 0.1 Ω resistor does not establish a fixed peak-current limit. 
 
 The design intentionally has no active current-limiting stage in these crowbar branches.
 
@@ -94,7 +86,7 @@ Selected voltage ── MUX_OUT ── Load Switch ─────────|
 
 The TPS22918 switches select or disconnect the supply paths between experiments or operating modes. They are not the components intended to generate the 200–300 ns crowbar pulse.
 
-The back-to-back MUX arrangement is intended to address reverse conduction through that branch. U8 is a single load switch, so the overall board should not be treated as providing complete bidirectional isolation on every supply path. Behavior during deep target-rail dips remains part of hardware validation.
+The back-to-back MUX arrangement is intended to address reverse conduction through that branch. U8 is a single load switch, so the overall board should not be treated as providing complete bidirectional isolation on every supply path. 
 
 Firmware is responsible for preventing unintended source overlap and returning the outputs to a defined state after each experiment. There is no dedicated hardware interlock enforcing the complete operating sequence.
 
@@ -147,7 +139,7 @@ The four-layer layout approach uses:
 | L3 | Signal routing and power distribution where needed |
 | L4 | Additional routing and power/ground copper |
 
-The discussed copper-weight target is 2 oz on the outer layers and 1 oz on the inner layers, subject to the selected fabricator's stackup.
+The copper-weight target is 2 oz on the outer layers and 1 oz on the inner layers.
 
 
 ## Validation still to document
@@ -159,6 +151,5 @@ The discussed copper-weight target is 2 oz on the outer layers and 1 oz on the i
 - Peak-current and repetition-rate limits for the assembled circuit.
 - Trigger-to-pulse timing and complete PIO firmware behavior.
 
-## Inspiration
 
-This project is inspired by [PicoGlitcher and the Fault Injection Library](https://github.com/MKesenheimer/fault-injection-library). It explores a custom combination of crowbar and voltage-multiplexing paths with a shared target connection and direct GPIO control of the analog switches. Hardware similarity does not imply firmware compatibility.
+This project is inspired by [PicoGlitcher and the Fault Injection Library](https://github.com/MKesenheimer/fault-injection-library). It explores a custom combination of crowbar and voltage-multiplexing paths with a shared target connection and direct GPIO control of the analog switches.
